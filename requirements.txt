@@ -5,3 +5,5 @@ opencv-python
 tensorflow
 scikit-learn
 gunicorn
+treansformers
+torch
