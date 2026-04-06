@@ -1,22 +1,21 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS   # ✅ added
+from flask_cors import CORS
 import pickle
 import numpy as np
 import cv2
 from tensorflow.keras.models import load_model
 
 app = Flask(__name__)
-CORS(app)   # ✅ added
+CORS(app)
 
 # ========================
 # LOAD MODELS
 # ========================
 
-# Make sure these files exist
 text_model = pickle.load(open("text_model.pkl", "rb"))
 vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 
-# OPTIONAL (only if you have image_model.h5)
+# OPTIONAL IMAGE MODEL
 try:
     image_model = load_model("image_model.h5")
     image_model_loaded = True
@@ -31,24 +30,36 @@ def home():
     return "Fake News Detector Running 🚀"
 
 # ========================
-# TEXT PREDICTION
+# TEXT PREDICTION (FIXED)
 # ========================
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.json
 
-    # ✅ FIX: support Lovable formats
     if not data:
         return jsonify({"error": "No input provided"})
 
     text = data.get('text') or data.get('input') or ""
 
     vec = vectorizer.transform([text])
-    prediction = text_model.predict(vec)[0]
 
-    result = "REAL" if prediction == 1 else "FAKE"
+    # 🔥 IMPROVED PREDICTION
+    proba = text_model.predict_proba(vec)[0]
 
-    return jsonify({"result": result})
+    fake_prob = proba[0]
+    real_prob = proba[1]
+
+    if fake_prob > real_prob:
+        result = "fake"
+        confidence = float(fake_prob)
+    else:
+        result = "real"
+        confidence = float(real_prob)
+
+    return jsonify({
+        "prediction": result,
+        "confidence": confidence
+    })
 
 # ========================
 # IMAGE PREDICTION
@@ -68,7 +79,12 @@ def predict_image():
 
     pred = image_model.predict(img)[0][0]
 
-    return jsonify({"prediction": float(pred)})
+    result = "fake" if pred > 0.5 else "real"
+
+    return jsonify({
+        "prediction": result,
+        "confidence": float(pred)
+    })
 
 # ========================
 # VIDEO PREDICTION
@@ -102,7 +118,12 @@ def predict_video():
 
     avg = np.mean(preds) if preds else 0
 
-    return jsonify({"prediction": float(avg)})
+    result = "fake" if avg > 0.5 else "real"
+
+    return jsonify({
+        "prediction": result,
+        "confidence": float(avg)
+    })
 
 # ========================
 # FINAL COMBINED RESULT
@@ -117,11 +138,11 @@ def predict_final():
 
     score = (text_score + image_score + video_score) / 3
 
-    result = "REAL" if score > 0.5 else "FAKE"
+    result = "fake" if score > 0.5 else "real"
 
     return jsonify({
-        "result": result,
-        "score": float(score)
+        "prediction": result,
+        "confidence": float(score)
     })
 
 # ========================
