@@ -5,5 +5,4 @@ opencv-python
 tensorflow
 scikit-learn
 gunicorn
-treansformers
-torch
+opencv-python-headless
