@@ -28,7 +28,20 @@ def predict():
     if not data:
         return jsonify({"error": "No input provided"})
 
-    text = data.get('text') or data.get('input') or ""
+    text = (data.get('text') or data.get('input') or "").lower()
+    fake_claims= [
+        "earth is flat",
+        "aliens landed",
+        "moon landing is fake"
+        "vaccines cause microchips"
+        "world is controlled secretly"
+    ]
+    for claim in fake_claims:
+        if claim in text:
+            return jsonify({
+                "prediction":"fake",
+                "confidence":0.95
+            })
 
     # 🔥 smarter logic
     suspicious_words = [
@@ -36,6 +49,7 @@ def predict():
         "exposed", "conspiracy", "viral", "unbelievable",
         "urgent", "leaked"
     ]
+
 
     score = 0.4
 
@@ -45,15 +59,13 @@ def predict():
 
     score = min(score, 0.95)
 
-    if score > 0.6:
-        prediction = "fake"
-    else:
-        prediction = "real"
-
+    prediction = "fake" if score > 0.6 else "real"
     return jsonify({
-        "prediction": prediction,
-        "confidence": float(round(score, 2))
+        "prediction" : prediction,
+        "confidence" : float(round(score,2))
+        
     })
+    
 
 # ========================
 # IMAGE PREDICTION (DISABLED SAFE)
