@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import pickle
 import numpy as np
 import cv2
 from tensorflow.keras.models import load_model
+from transformers import pipeline
 
 app = Flask(__name__)
 CORS(app)
@@ -12,8 +12,11 @@ CORS(app)
 # LOAD MODELS
 # ========================
 
-text_model = pickle.load(open("text_model.pkl", "rb"))
-vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
+# 🔥 BERT (DistilBERT)
+classifier = pipeline(
+    "text-classification",
+    model="distilbert-base-uncased-finetuned-sst-2-english"
+)
 
 # OPTIONAL IMAGE MODEL
 try:
@@ -30,7 +33,7 @@ def home():
     return "Fake News Detector Running 🚀"
 
 # ========================
-# TEXT PREDICTION (FIXED)
+# TEXT PREDICTION (BERT)
 # ========================
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -41,24 +44,20 @@ def predict():
 
     text = data.get('text') or data.get('input') or ""
 
-    vec = vectorizer.transform([text])
+    result = classifier(text)[0]
 
-    # 🔥 IMPROVED PREDICTION
-    proba = text_model.predict_proba(vec)[0]
+    label = result['label']   # POSITIVE / NEGATIVE
+    score = result['score']
 
-    fake_prob = proba[0]
-    real_prob = proba[1]
-
-    if fake_prob > real_prob:
-        result = "fake"
-        confidence = float(fake_prob)
+    # Convert sentiment → fake/real
+    if label == "NEGATIVE":
+        prediction = "fake"
     else:
-        result = "real"
-        confidence = float(real_prob)
+        prediction = "real"
 
     return jsonify({
-        "prediction": result,
-        "confidence": confidence
+        "prediction": prediction,
+        "confidence": float(score)
     })
 
 # ========================
