@@ -1,15 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import numpy as np
-import cv2
+import re
 
 app = Flask(__name__)
 CORS(app)
-
-# ========================
-# DISABLE IMAGE MODEL (IMPORTANT)
-# ========================
-image_model_loaded = False
 
 # ========================
 # HOME ROUTE
@@ -19,7 +13,7 @@ def home():
     return "Fake News Detector Running 🚀"
 
 # ========================
-# TEXT PREDICTION (SMART RULE BASED)
+# TEXT PREDICTION (IMPROVED)
 # ========================
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -28,44 +22,105 @@ def predict():
     if not data:
         return jsonify({"error": "No input provided"})
 
-    text = (data.get('text') or data.get('input') or "").lower()
-    fake_claims= [
-        "earth is flat",
-        "aliens landed",
-        "moon landing is fake"
-        "vaccines cause microchips"
-        "world is controlled secretly"
+    text = data.get('text') or data.get('input') or ""
+    text_lower = text.lower()
+
+    fake_score = 0
+    real_score = 0
+
+    # 🚨 STRONG FAKE PATTERNS (instant detection)
+    strong_fake_patterns = [
+        "free for all",
+        "free laptops to all",
+        "all students will get",
+        "miracle cure",
+        "100% cure",
+        "overnight success",
+        "share before deleted",
+        "secret they don't want you to know"
     ]
-    for claim in fake_claims:
-        if claim in text:
+
+    for pattern in strong_fake_patterns:
+        if pattern in text_lower:
             return jsonify({
-                "prediction":"fake",
-                "confidence":0.95
+                "prediction": "fake",
+                "confidence": 0.95
             })
 
-    # 🔥 smarter logic
-    suspicious_words = [
-        "breaking", "shocking", "aliens", "secret",
-        "exposed", "conspiracy", "viral", "unbelievable",
-        "urgent", "leaked"
+    # 🔴 FAKE KEYWORDS (weighted)
+    fake_keywords = [
+        "breaking", "shocking", "secret",
+        "exposed", "viral", "unbelievable",
+        "urgent", "leaked", "conspiracy",
+        "alert", "must watch"
     ]
 
+    for word in fake_keywords:
+        if word in text_lower:
+            fake_score += 2
 
-    score = 0.4
+    # 🟢 REAL KEYWORDS (more strict)
+    real_keywords = [
+        "according to", "reported by",
+        "research study", "data shows",
+        "official report", "press release",
+        "confirmed by", "sources said"
+    ]
 
-    for word in suspicious_words:
-        if word in text.lower():
-            score += 0.12
+    for word in real_keywords:
+        if word in text_lower:
+            real_score += 2
 
-    score = min(score, 0.95)
+    # 🧠 CONTEXT RULES (VERY IMPORTANT)
+    if "government" in text_lower and "free" in text_lower:
+        fake_score += 3
 
-    prediction = "fake" if score > 0.6 else "real"
+    if "all students" in text_lower or "everyone" in text_lower:
+        fake_score += 2
+
+    if "cure" in text_lower:
+        fake_score += 2
+
+    if "click here" in text_lower or "share now" in text_lower:
+        fake_score += 2
+
+    # 📢 EXAGGERATION CHECK
+    if text.count("!") >= 2:
+        fake_score += 1
+
+    if text.isupper():
+        fake_score += 2
+
+    # 🧾 LENGTH & STRUCTURE CHECK
+    word_count = len(text.split())
+
+    if word_count > 25:
+        real_score += 2
+    elif word_count < 6:
+        fake_score += 1
+
+    # 🔍 NUMBERS / DATA (more realistic)
+    if re.search(r'\d+', text):
+        real_score += 1
+
+    # ⚖️ FINAL DECISION (FIXED CORE LOGIC)
+    total = fake_score + real_score + 1
+
+    if fake_score > real_score:
+        prediction = "fake"
+        confidence = fake_score / total
+    elif real_score > fake_score:
+        prediction = "real"
+        confidence = real_score / total
+    else:
+        prediction = "fake"   # safer default
+        confidence = 0.5
+
     return jsonify({
-        "prediction" : prediction,
-        "confidence" : float(round(score,2))
-        
+        "prediction": prediction,
+        "confidence": round(float(confidence), 2)
     })
-    
+
 
 # ========================
 # IMAGE PREDICTION (DISABLED SAFE)
@@ -74,12 +129,14 @@ def predict():
 def predict_image():
     return jsonify({"error": "Image model disabled to reduce server load"})
 
+
 # ========================
 # VIDEO PREDICTION (DISABLED SAFE)
 # ========================
 @app.route('/predict-video', methods=['POST'])
 def predict_video():
     return jsonify({"error": "Video model disabled to reduce server load"})
+
 
 # ========================
 # FINAL COMBINED RESULT
@@ -98,8 +155,9 @@ def predict_final():
 
     return jsonify({
         "prediction": result,
-        "confidence": float(score)
+        "confidence": round(float(score), 2)
     })
+
 
 # ========================
 # RUN SERVER
