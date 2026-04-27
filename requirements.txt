@@ -1,8 +1,9 @@
 flask
 flask-cors
-numpy
-opencv-python
-tensorflow
+flask-sqlalchemy
+pandas
 scikit-learn
-gunicorn
+pillow
 opencv-python-headless
+transformers
+torch
